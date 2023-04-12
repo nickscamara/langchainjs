@@ -14,7 +14,7 @@ const config = {
   tagline: "LangChain JS Docs",
   favicon: "img/favicon.ico",
   customFields: {
-    mendableAnonKey: process.env.MENDABLE_ANON_KEY,
+    mendableAnonKey: "01646054-05c3-40f5-909d-dac3449fa2a8",
   },
   // Set the production url of your site here
   url: "https://js.langchain.com",
