@@ -1,5 +1,7 @@
 import { Document } from "../document.js";
 
+export const RUN_KEY = "__run";
+
 export type Example = Record<string, string>;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -39,6 +41,11 @@ export type LLMResult = {
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   llmOutput?: Record<string, any>;
+  /**
+   * Dictionary of run metadata
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [RUN_KEY]?: Record<string, any>;
 };
 export type MessageType = "human" | "ai" | "generic" | "system";
 
@@ -133,54 +140,25 @@ export type ChainValues = Record<string, any>;
 export abstract class BaseRetriever {
   abstract getRelevantDocuments(query: string): Promise<Document[]>;
 }
-/** Class to parse the output of an LLM call.
- */
-export abstract class BaseOutputParser {
-  /**
-   * Parse the output of an LLM call.
-   *
-   * @param text - LLM output to parse.
-   * @returns Parsed output.
-   */
-  abstract parse(text: string): Promise<unknown>;
-
-  async parseWithPrompt(
-    text: string,
-    _prompt: BasePromptValue
-  ): Promise<unknown> {
-    return this.parse(text);
-  }
-
-  /**
-   * Return a string describing the format of the output.
-   * @returns Format instructions.
-   * @example
-   * ```json
-   * {
-   *  "foo": "bar"
-   * }
-   * ```
-   */
-  abstract getFormatInstructions(): string;
-
-  /**
-   * Return the string type key uniquely identifying this class of parser
-   */
-  _type(): string {
-    throw new Error("_type not implemented");
-  }
-}
-
-export class OutputParserException extends Error {
-  constructor(message: string) {
-    super(message);
-  }
-}
 
 export abstract class BaseChatMessageHistory {
-  public abstract get messages(): BaseChatMessage[];
+  public abstract getMessages(): Promise<BaseChatMessage[]>;
 
-  public abstract addUserMessage(message: string): void;
+  public abstract addUserMessage(message: string): Promise<void>;
 
-  public abstract addAIChatMessage(message: string): void;
+  public abstract addAIChatMessage(message: string): Promise<void>;
+
+  public abstract clear(): Promise<void>;
+}
+
+export abstract class BaseCache<T = Generation[]> {
+  abstract lookup(prompt: string, llmKey: string): Promise<T | null>;
+
+  abstract update(prompt: string, llmKey: string, value: T): Promise<void>;
+}
+
+export abstract class BaseFileStore {
+  abstract readFile(path: string): Promise<string>;
+
+  abstract writeFile(path: string, contents: string): Promise<void>;
 }

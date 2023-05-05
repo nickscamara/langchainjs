@@ -1,12 +1,13 @@
-import { BaseOutputParser, OutputParserException } from "../schema/index.js";
+import {
+  BaseOutputParser,
+  OutputParserException,
+} from "../schema/output_parser.js";
 
 /**
  * Class to parse the output of an LLM call to a list.
  * @augments BaseOutputParser
  */
-export abstract class ListOutputParser extends BaseOutputParser {
-  abstract parse(text: string): Promise<string[]>;
-}
+export abstract class ListOutputParser extends BaseOutputParser<string[]> {}
 
 /**
  * Class to parse the output of an LLM call as a comma-separated list.
@@ -20,7 +21,7 @@ export class CommaSeparatedListOutputParser extends ListOutputParser {
         .split(",")
         .map((s) => s.trim());
     } catch (e) {
-      throw new OutputParserException(`Could not parse output: ${text}`);
+      throw new OutputParserException(`Could not parse output: ${text}`, text);
     }
   }
 

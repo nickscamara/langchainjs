@@ -1,54 +1,13 @@
 import { z } from "zod";
-
-import { BaseOutputParser, OutputParserException } from "../schema/index.js";
-
-function printSchema(schema: z.ZodTypeAny, depth = 0): string {
-  if (
-    schema instanceof z.ZodString &&
-    schema._def.checks.some((check) => check.kind === "datetime")
-  ) {
-    return "datetime";
-  }
-  if (schema instanceof z.ZodString) {
-    return "string";
-  }
-  if (schema instanceof z.ZodNumber) {
-    return "number";
-  }
-  if (schema instanceof z.ZodBoolean) {
-    return "boolean";
-  }
-  if (schema instanceof z.ZodDate) {
-    return "date";
-  }
-  if (schema instanceof z.ZodOptional) {
-    return `${printSchema(schema._def.innerType, depth)} // Optional`;
-  }
-  if (schema instanceof z.ZodArray) {
-    return `${printSchema(schema._def.type, depth)}[]`;
-  }
-  if (schema instanceof z.ZodObject) {
-    const indent = "\t".repeat(depth);
-    const indentIn = "\t".repeat(depth + 1);
-    return `{${schema._def.description ? ` // ${schema._def.description}` : ""}
-${Object.entries(schema.shape)
-  .map(
-    ([key, value]) =>
-      `${indentIn}"${key}": ${printSchema(value as z.ZodTypeAny, depth + 1)}${
-        (value as z.ZodTypeAny)._def.description
-          ? ` // ${(value as z.ZodTypeAny)._def.description}`
-          : ""
-      }`
-  )
-  .join("\n")}
-${indent}}`;
-  }
-  throw new Error(`Unsupported type: ${schema._def.innerType}`);
-}
+import { zodToJsonSchema } from "zod-to-json-schema";
+import {
+  BaseOutputParser,
+  OutputParserException,
+} from "../schema/output_parser.js";
 
 export class StructuredOutputParser<
   T extends z.ZodTypeAny
-> extends BaseOutputParser {
+> extends BaseOutputParser<z.infer<T>> {
   constructor(public schema: T) {
     super();
   }
@@ -73,21 +32,28 @@ export class StructuredOutputParser<
   }
 
   getFormatInstructions(): string {
-    return `The output should be a markdown code snippet formatted in the following schema:
+    return `The output should be formatted as a JSON instance that conforms to the JSON schema below.
 
-\`\`\`json
-${printSchema(this.schema)}
+As an example, for the schema {{"properties": {{"foo": {{"title": "Foo", "description": "a list of strings", "type": "array", "items": {{"type": "string"}}}}}}, "required": ["foo"]}}}}
+the object {{"foo": ["bar", "baz"]}} is a well-formatted instance of the schema. The object {{"properties": {{"foo": ["bar", "baz"]}}}} is not well-formatted.
+
+Here is the output schema:
+\`\`\`
+${JSON.stringify(zodToJsonSchema(this.schema))}
 \`\`\`
 `;
   }
 
   async parse(text: string): Promise<z.infer<T>> {
     try {
-      const json = text.trim().split("```json")[1].split("```")[0].trim();
-      return this.schema.parse(JSON.parse(json));
+      const json = text.includes("```")
+        ? text.trim().split(/```(?:json)?/)[1]
+        : text.trim();
+      return this.schema.parseAsync(JSON.parse(json));
     } catch (e) {
       throw new OutputParserException(
-        `Failed to parse. Text: ${text}. Error: ${e}`
+        `Failed to parse. Text: "${text}". Error: ${e}`,
+        text
       );
     }
   }
